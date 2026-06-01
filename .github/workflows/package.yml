@@ -39,7 +39,8 @@ jobs:
       - name: Build Python artifacts
         run: |
           bash scripts/ci/build-package-artifacts.sh
-          bash scripts/ci/finalize-artifacts.sh artifacts
+          VERSION=$(awk -F'"' '/^version = / { print $2; exit }' pyproject.toml)
+          bash scripts/ci/finalize-artifacts.sh artifacts "python" "$VERSION" "linux" "wheel"
 
       - name: Read package version
         id: version
@@ -64,7 +65,8 @@ jobs:
       - name: Build source archive
         run: |
           bash scripts/ci/build-source-dist.sh
-          bash scripts/ci/finalize-artifacts.sh artifacts
+          VERSION=$(awk -F'"' '/^version = / { print $2; exit }' pyproject.toml)
+          bash scripts/ci/finalize-artifacts.sh artifacts "source" "$VERSION" "linux" "source"
 
       - name: Read package version
         id: version
@@ -119,15 +121,16 @@ jobs:
       - name: Write Docker artifact manifest
         run: |
           mkdir -p artifacts
+          VERSION=$(awk -F'"' '/^version = / { print $2; exit }' pyproject.toml)
           {
-            awk -F'"' '/^version = / { print "version=" $2; exit }' pyproject.toml
+            echo "version=${VERSION}"
             echo "image=${IMAGE_NAME}"
             echo "digest=${{ steps.build.outputs.digest }}"
             echo "tags<<EOF"
             printf '%s\n' "${{ steps.meta.outputs.tags }}"
             echo "EOF"
           } > artifacts/manifest.txt
-          bash scripts/ci/finalize-artifacts.sh artifacts
+          bash scripts/ci/finalize-artifacts.sh artifacts "docker" "$VERSION" "linux" "docker"
 
       - name: Read package version
         id: version
@@ -168,7 +171,8 @@ jobs:
       - name: Build DEB artifact
         run: |
           bash scripts/ci/build-deb-package.sh "${{ matrix.target }}"
-          bash scripts/ci/finalize-artifacts.sh artifacts
+          VERSION=$(awk -F'"' '/^version = / { print $2; exit }' pyproject.toml)
+          bash scripts/ci/finalize-artifacts.sh artifacts "deb-${{ matrix.target }}" "$VERSION" "linux" "deb"
 
       - name: Read package version
         id: version
@@ -223,7 +227,8 @@ jobs:
             -w /work \
             "${{ matrix.container }}" \
             sh -lc '${{ matrix.install }} && bash scripts/ci/build-rpm-package.sh "${{ matrix.target }}" && chown -R "$(stat -c "%u:%g" /work)" artifacts'
-          bash scripts/ci/finalize-artifacts.sh artifacts
+VERSION=$(awk -F'"' '/^version = / { print $2; exit }' pyproject.toml)
+          bash scripts/ci/finalize-artifacts.sh artifacts "rpm-${{ matrix.target }}" "$VERSION" "linux" "rpm"
 
       - name: Read package version
         id: version
@@ -257,7 +262,8 @@ jobs:
         run: |
           docker run --rm -v "$PWD:/work" -w /work "${{ matrix.container }}" \
             sh -lc "apk add --no-cache bash ca-certificates git python3 tar gzip findutils coreutils && bash scripts/ci/build-apk-package.sh '${{ matrix.target }}' && chown -R \"\$(stat -c '%u:%g' /work)\" artifacts"
-          bash scripts/ci/finalize-artifacts.sh artifacts
+          VERSION=$(awk -F'"' '/^version = / { print $2; exit }' pyproject.toml)
+          bash scripts/ci/finalize-artifacts.sh artifacts "apk-${{ matrix.target }}" "$VERSION" "linux" "apk"
 
       - name: Read package version
         id: version
@@ -286,7 +292,8 @@ jobs:
           useradd -m builder
           chown -R builder:builder "$PWD"
           su builder -c 'bash scripts/ci/build-aur-package.sh'
-          bash scripts/ci/finalize-artifacts.sh artifacts
+          VERSION=$(awk -F'"' '/^version = / { print $2; exit }' pyproject.toml)
+          bash scripts/ci/finalize-artifacts.sh artifacts "aur" "$VERSION" "linux" "aur"
 
       - name: Read package version
         id: version
@@ -326,7 +333,9 @@ jobs:
           cd artifacts && zip -r "odysseus-macos-${{ github.sha }}.zip" odysseus-macos
 
       - name: Finalize artifacts
-        run: bash scripts/ci/finalize-artifacts.sh artifacts
+        run: |
+          VERSION=$(awk -F'"' '/^version = / { print $2; exit }' pyproject.toml)
+          bash scripts/ci/finalize-artifacts.sh artifacts "macos" "$VERSION" "macos" "zip"
 
       - name: Read package version
         id: version
@@ -369,7 +378,9 @@ jobs:
           Compress-Archive -Path artifacts\odysseus-windows -DestinationPath "artifacts\odysseus-windows-${{ github.sha }}.zip" -Force
 
       - name: Finalize artifacts
-        run: bash scripts/ci/finalize-artifacts.sh artifacts
+        run: |
+          VERSION=$(awk -F'"' '/^version = / { print $2; exit }' pyproject.toml)
+          bash scripts/ci/finalize-artifacts.sh artifacts "windows" "$VERSION" "windows" "zip"
         shell: bash
 
       - name: Read package version
