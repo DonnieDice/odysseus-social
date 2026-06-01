@@ -1,0 +1,18 @@
+[Unit]
+Description=Odysseus AI Workspace
+Documentation=https://github.com/DonnieDice/odysseus
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=odysseus
+Group=odysseus
+WorkingDirectory=/opt/odysseus
+EnvironmentFile=-/etc/odysseus/odysseus.env
+ExecStart=/opt/odysseus/.venv/bin/python -m uvicorn app:app --host 0.0.0.0 --port 7000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
