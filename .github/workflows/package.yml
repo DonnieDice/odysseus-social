@@ -437,10 +437,7 @@ jobs:
           path: release-artifacts
 
       - name: Prepare release files
-        env:
-          TAG: ${{ github.ref_name }}
         run: |
-          VERSION="${TAG#v}"
           mkdir -p release
 
           # Collect only real package binaries — skip metadata files.
@@ -453,7 +450,7 @@ jobs:
           done < <(find release-artifacts -type f | sort)
 
           cd release
-          sha256sum * > SHA256SUMS
+          sha256sum ./* > SHA256SUMS
           echo "Release artifacts:"
           ls -lah
           cd ..
@@ -501,7 +498,7 @@ jobs:
           TAG: ${{ github.ref_name }}
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@cfea534fc28a620b6f4e5aceaf93593622e1b791 # v2.2.2
         with:
           tag_name: ${{ github.ref_name }}
           body_path: RELEASE_NOTES.md
