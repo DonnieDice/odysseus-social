@@ -306,6 +306,90 @@ VERSION=$(awk -F'"' '/^version = / { print $2; exit }' pyproject.toml)
           path: artifacts/
           retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
 
+  macos:
+    name: macOS .app bundle
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pyinstaller
+
+      - name: Build macOS .app with PyInstaller
+        run: |
+          pyinstaller --onefile --name odysseus --add-data "static:static" --add-data "core:core" --add-data "routes:routes" --add-data "src:src" --add-data "services:services" --add-data "mcp_servers:mcp_servers" --add-data "config:config" --add-data "scripts:scripts" app.py
+          mkdir -p artifacts
+          hdiutil create -volname Odysseus -srcfolder dist/odysseus.app -ov -format UDZO "artifacts/odysseus-macos-${{ github.sha }}.dmg"
+
+      - name: Finalize artifacts
+        run: |
+          VERSION=$(awk -F'"' '/^version = / { print $2; exit }' pyproject.toml)
+          bash scripts/ci/finalize-artifacts.sh artifacts "macos" "$VERSION" "macos" "dmg"
+
+      - name: Read package version
+        id: version
+        run: awk -F'"' '/^version = / { print "version=" $2; exit }' pyproject.toml >> "$GITHUB_OUTPUT"
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: odysseus-macos-${{ steps.version.outputs.version }}-${{ github.sha }}
+          path: artifacts/
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+
+  windows:
+    name: Windows .exe installer
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pyinstaller
+
+      - name: Build Windows .exe with PyInstaller
+        run: |
+          pyinstaller --onefile --name odysseus --add-data "static;static" --add-data "core;core" --add-data "routes;routes" --add-data "src;src" --add-data "services;services" --add-data "mcp_servers;mcp_servers" --add-data "config;config" --add-data "scripts;scripts" app.py
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          Copy-Item dist/odysseus.exe "artifacts/odysseus-windows-${{ github.sha }}.exe"
+
+      - name: Finalize artifacts
+        run: |
+          VERSION=$(awk -F'"' '/^version = / { print $2; exit }' pyproject.toml)
+          bash scripts/ci/finalize-artifacts.sh artifacts "windows" "$VERSION" "windows" "exe"
+        shell: bash
+
+      - name: Read package version
+        id: version
+        run: awk -F'"' '/^version = / { print "version=" $2; exit }' pyproject.toml >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: odysseus-windows-${{ steps.version.outputs.version }}-${{ github.sha }}
+          path: artifacts/
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+
   release:
     name: GitHub Release artifacts
     if: startsWith(github.ref, 'refs/tags/v')
@@ -318,6 +402,8 @@ VERSION=$(awk -F'"' '/^version = / { print $2; exit }' pyproject.toml)
       - rpm
       - apk
       - aur
+      - macos
+      - windows
     steps:
       - name: Download package artifacts
         uses: actions/download-artifact@v4
