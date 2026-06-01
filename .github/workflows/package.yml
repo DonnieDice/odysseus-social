@@ -441,21 +441,33 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           mkdir -p release-files
+
+          # Collect only real package artifacts — skip per-bundle metadata files.
           while IFS= read -r file; do
-            artifact="$(basename "$(dirname "$file")")"
             name="$(basename "$file")"
             case "$name" in
-              manifest.txt|SHA256SUMS)
-                cp "$file" "release-files/${artifact}-${name}"
-                ;;
-              *)
-                cp "$file" "release-files/${name}"
-                ;;
+              SHA256SUMS|manifest.txt|metadata.json) continue ;;
+              *) cp "$file" "release-files/${name}" ;;
             esac
           done < <(find release-artifacts -type f | sort)
+
+          # Build release body from docker metadata if present.
+          NOTES="Versioned Odysseus package artifacts built by GitHub Actions."
+          DOCKER_MANIFEST="$(find release-artifacts -path '*/manifest.txt' -not -name '*.txt' | head -1 || true)"
+          if [ -n "$DOCKER_MANIFEST" ]; then
+            IMG="$(grep '^image=' "$DOCKER_MANIFEST" | cut -d= -f2- || true)"
+            DIGEST="$(grep '^digest=' "$DOCKER_MANIFEST" | cut -d= -f2- || true)"
+            if [ -n "$IMG" ]; then
+              NOTES="${NOTES}\n\nDocker: \`${IMG}@${DIGEST}\`"
+            fi
+          fi
+
+          echo "Release artifacts:"
           find release-files -type f | sort
+
           gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --title "Odysseus ${TAG}" \
-            --notes "Versioned Odysseus package artifacts built by GitHub Actions. External AUR/Snap/Flatpak publishing is intentionally maintainer-owned follow-up work."
+            --notes "${NOTES}"
+
           find release-files -type f -size +0c -print0 | xargs -0 -r -I{} gh release upload "$TAG" "{}" --repo "$GITHUB_REPOSITORY" --clobber
