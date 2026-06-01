@@ -307,7 +307,7 @@ jobs:
           retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
 
   macos:
-    name: macOS .app bundle
+    name: macOS standalone
     runs-on: macos-latest
     steps:
       - name: Check out repository
@@ -325,11 +325,12 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install pyinstaller
 
-      - name: Build macOS .app with PyInstaller
+      - name: Build macOS DMG with PyInstaller
         run: |
           pyinstaller --onefile --name odysseus --add-data "static:static" --add-data "core:core" --add-data "routes:routes" --add-data "src:src" --add-data "services:services" --add-data "mcp_servers:mcp_servers" --add-data "config:config" --add-data "scripts:scripts" app.py
-          mkdir -p artifacts
-          hdiutil create -volname Odysseus -srcfolder dist/odysseus.app -ov -format UDZO "artifacts/odysseus-macos-${{ github.sha }}.dmg"
+          mkdir -p artifacts dist/Odysseus
+          cp dist/odysseus dist/Odysseus/
+          hdiutil create -volname Odysseus -srcfolder dist/Odysseus -ov -format UDZO "artifacts/odysseus-macos-${{ github.sha }}.dmg"
 
       - name: Finalize artifacts
         run: |

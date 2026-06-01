@@ -81,7 +81,7 @@ target_count="$(
   grep -E "target: (debian12|debian13|ubuntu2404|ubuntu2604|fedora43|fedora44|el10|opensuse-tumbleweed|alpine320|alpine322|alpine323)" .github/workflows/package.yml | wc -l | tr -d ' '
 )"
 fixed_targets="$(
-  grep -E "name: (Python wheel and sdist|Git source archive|Docker image|AUR source package|macOS .app bundle|Windows .exe installer)" .github/workflows/package.yml | wc -l | tr -d ' '
+  grep -E "name: (Python wheel and sdist|Git source archive|Docker image|AUR source package|macOS standalone|Windows .exe installer)" .github/workflows/package.yml | wc -l | tr -d ' '
 )"
 total_targets=$((target_count + fixed_targets))
 if [ "${total_targets}" -ne 17 ]; then
