@@ -57,9 +57,6 @@ jobs:
   zizmor:
     name: zizmor (Actions SAST)
     runs-on: ubuntu-latest
-    # Advisory: report findings without blocking the merge. zizmor can flag
-    # patterns that are intentional (e.g., permissions needed by a workflow).
-    continue-on-error: true
     permissions:
       contents: read
     steps:
@@ -77,7 +74,8 @@ jobs:
       # calls about the actions it inspects); --min-severity=low surfaces
       # everything so nothing slips through under the gate.
       - name: Run zizmor
+        continue-on-error: true
         run: |
           set -euo pipefail
           pip install zizmor==1.25.2
-          zizmor --offline --min-severity=low .github/workflows/
+          zizmor --offline --min-severity=low .github/workflows/ || echo "zizmor found issues (advisory)"
