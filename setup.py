@@ -9,6 +9,12 @@ import os
 import shutil
 import sys
 
+if len(sys.argv) > 1:
+    from setuptools import setup
+
+    setup()
+    raise SystemExit
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 

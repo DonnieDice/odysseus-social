@@ -26,10 +26,6 @@ class _FakeModelEndpoint:
     owner = _FakeColumn("owner")
 
 
-class _FakeDbSession:
-    endpoint_url = _FakeColumn("endpoint_url")
-
-
 class _FakeQuery:
     def __init__(self, rows):
         self.rows = list(rows)
@@ -72,7 +68,7 @@ def _install_model_route_import_stubs(monkeypatch):
     db_mod = types.ModuleType("core.database")
     db_mod.SessionLocal = lambda: _FakeDb([])
     db_mod.ModelEndpoint = _FakeModelEndpoint
-    db_mod.Session = _FakeDbSession
+    db_mod.Session = MagicMock()
     middleware_mod = types.ModuleType("core.middleware")
     middleware_mod.require_admin = lambda request: None
     multipart_mod = types.ModuleType("python_multipart")
@@ -83,18 +79,6 @@ def _install_model_route_import_stubs(monkeypatch):
     monkeypatch.setitem(sys.modules, "core.database", db_mod)
     monkeypatch.setitem(sys.modules, "core.middleware", middleware_mod)
     monkeypatch.setitem(sys.modules, "python_multipart", multipart_mod)
-
-
-def _install_core_auth_stub(monkeypatch):
-    """Install the narrow auth surface needed by tool-policy tests."""
-    core_mod = types.ModuleType("core")
-    core_mod.__path__ = []
-    auth_mod = types.ModuleType("core.auth")
-    auth_mod.AuthManager = MagicMock()
-    core_mod.auth = auth_mod
-    monkeypatch.setitem(sys.modules, "core", core_mod)
-    monkeypatch.setitem(sys.modules, "core.auth", auth_mod)
-    return auth_mod
 
 
 def test_default_chat_does_not_auto_pick_shared_endpoint_for_fresh_user(monkeypatch):
@@ -352,8 +336,8 @@ async def test_build_chat_context_incognito_does_not_duplicate_current_user_mess
 
 @pytest.mark.asyncio
 async def test_admin_agent_tools_require_admin(monkeypatch):
-    auth_mod = _install_core_auth_stub(monkeypatch)
     from src.tool_execution import execute_tool_block
+    import core.auth
 
     class FakeAuth:
         is_configured = True
@@ -361,7 +345,7 @@ async def test_admin_agent_tools_require_admin(monkeypatch):
         def is_admin(self, username):
             return False
 
-    monkeypatch.setattr(auth_mod, "AuthManager", lambda: FakeAuth())
+    monkeypatch.setattr(core.auth, "AuthManager", lambda: FakeAuth())
 
     desc, result = await execute_tool_block(
         SimpleNamespace(tool_type="manage_tokens", content='{"action":"create","name":"bad"}'),
@@ -375,8 +359,8 @@ async def test_admin_agent_tools_require_admin(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_public_agent_policy_blocks_sensitive_tools(monkeypatch):
-    auth_mod = _install_core_auth_stub(monkeypatch)
     from src.tool_execution import execute_tool_block
+    import core.auth
 
     class FakeAuth:
         is_configured = True
@@ -384,7 +368,7 @@ async def test_public_agent_policy_blocks_sensitive_tools(monkeypatch):
         def is_admin(self, username):
             return False
 
-    monkeypatch.setattr(auth_mod, "AuthManager", lambda: FakeAuth())
+    monkeypatch.setattr(core.auth, "AuthManager", lambda: FakeAuth())
 
     for tool_name in ("send_email", "read_file", "app_api", "mcp__email__send_email"):
         desc, result = await execute_tool_block(
@@ -397,7 +381,7 @@ async def test_public_agent_policy_blocks_sensitive_tools(monkeypatch):
 
 
 def test_public_agent_policy_hides_sensitive_tools(monkeypatch):
-    auth_mod = _install_core_auth_stub(monkeypatch)
+    import core.auth
     from src.tool_security import blocked_tools_for_owner
 
     class FakeAuth:
@@ -406,7 +390,7 @@ def test_public_agent_policy_hides_sensitive_tools(monkeypatch):
         def is_admin(self, username):
             return False
 
-    monkeypatch.setattr(auth_mod, "AuthManager", lambda: FakeAuth())
+    monkeypatch.setattr(core.auth, "AuthManager", lambda: FakeAuth())
 
     blocked = blocked_tools_for_owner("regular-user")
 

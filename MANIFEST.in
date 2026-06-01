@@ -1,0 +1,15 @@
+include LICENSE
+include README.md
+include requirements.txt
+include requirements-optional.txt
+include .env.example
+recursive-include config *
+recursive-include docs *
+recursive-include media *
+recursive-include static *
+recursive-include scripts *
+recursive-include docker *
+recursive-include tests *
+global-exclude __pycache__/*
+global-exclude *.py[cod]
+global-exclude .DS_Store
