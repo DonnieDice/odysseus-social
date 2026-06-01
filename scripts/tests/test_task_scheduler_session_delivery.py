@@ -1,10 +1,15 @@
 """Regression tests for task-result delivery into chat sessions (issue #326)."""
 import asyncio
+import os
 import sys
 import types as _types
 from unittest.mock import Mock
 
 import pytest
+
+# core.database initializes the DB at import time. In CI, ./data/app.db may not
+# exist, so force an in-memory DB before importing the real database module.
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 
 # Other tests may stub core.database during collection. Drop any MagicMock
 # stubs so sqlalchemy's declarative base and real model classes load.
@@ -16,6 +21,7 @@ def _drop_mocked_module_tree(prefix: str) -> None:
 
 _drop_mocked_module_tree("sqlalchemy")
 _drop_mocked_module_tree("core")
+sys.modules.pop("core.database", None)
 sys.modules.pop("src.database", None)
 
 sqlalchemy = pytest.importorskip("sqlalchemy")
