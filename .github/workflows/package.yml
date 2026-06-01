@@ -184,7 +184,6 @@ jobs:
   rpm:
     name: RPM / ${{ matrix.target }}
     runs-on: ubuntu-latest
-    container: ${{ matrix.container }}
     strategy:
       fail-fast: false
       matrix:
@@ -202,15 +201,28 @@ jobs:
             container: opensuse/tumbleweed:latest
             install: zypper --non-interactive --gpg-auto-import-keys refresh && zypper --non-interactive install bash ca-certificates git python3 rpm-build systemd-rpm-macros
     steps:
-      - name: Install build dependencies
-        run: ${{ matrix.install }}
-
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Pull RPM build container
+        run: |
+          set -euo pipefail
+          for i in 1 2 3 4 5; do
+            if docker pull "${{ matrix.container }}"; then
+              exit 0
+            fi
+            echo "Container pull failed; retrying in $((i * 10))s..."
+            sleep $((i * 10))
+          done
+          docker pull "${{ matrix.container }}"
+
       - name: Build RPM artifact
         run: |
-          bash scripts/ci/build-rpm-package.sh "${{ matrix.target }}"
+          docker run --rm \
+            -v "$PWD:/work" \
+            -w /work \
+            "${{ matrix.container }}" \
+            sh -lc '${{ matrix.install }} && bash scripts/ci/build-rpm-package.sh "${{ matrix.target }}" && chown -R "$(stat -c "%u:%g" /work)" artifacts'
           bash scripts/ci/finalize-artifacts.sh artifacts
 
       - name: Read package version
